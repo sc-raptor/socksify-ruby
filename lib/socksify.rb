@@ -218,39 +218,40 @@ class TCPSocket
   # Connect
   def socks_connect(host, port)
     Socksify::debug_debug "Sending destination address"
-    write TCPSocket.socks_version
+    connection_string = TCPSocket.socks_version
     Socksify::debug_debug TCPSocket.socks_version.unpack "H*"
-    write "\001"
-    write "\000" if @@socks_version == "5"
-    write [port].pack('n') if @@socks_version =~ /^4/
+    connection_string += "\001"
+    connection_string += "\000" if @@socks_version == "5"
+    connection_string += [port].pack('n') if @@socks_version =~ /^4/
 
     if @@socks_version == "4"
       host = Resolv::DNS.new.getaddress(host).to_s
     end
     Socksify::debug_debug host
     if host =~ /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/  # to IPv4 address
-      write "\001" if @@socks_version == "5"
+      connection_string += "\001" if @@socks_version == "5"
       _ip = [$1.to_i,
              $2.to_i,
              $3.to_i,
              $4.to_i
             ].pack('CCCC')
-      write _ip
+      connection_string += _ip
     elsif host =~ /^[:0-9a-f]+$/  # to IPv6 address
       raise "TCP/IPv6 over SOCKS is not yet supported (inet_pton missing in Ruby & not supported by Tor"
-      write "\004"
+      connection_string += "\004"
     else                          # to hostname
       if @@socks_version == "5"
-        write "\003" + [host.size].pack('C') + host
+        connection_string += "\003" + [host.size].pack('C') + host
       else
-        write "\000\000\000\001"
-        write "\007\000"
+        connection_string += "\000\000\000\001"
+        connection_string += "\007\000"
         Socksify::debug_notice host
-        write host
-        write "\000"
+        connection_string += host
+        connection_string += "\000"
       end
     end
-    write [port].pack('n') if @@socks_version == "5"
+    connection_string += [port].pack('n') if @@socks_version == "5"
+    write connection_string
 
     socks_receive_reply
     Socksify::debug_notice "Connected to #{host}:#{port} over SOCKS"
